@@ -62,7 +62,7 @@ fi;
 
 # Log in
 echo Logging in
-login
+login || exit 1
 
 # Check url validity
 $CURL $base_url >/dev/null
