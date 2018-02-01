@@ -16,6 +16,8 @@ function verbose {
 function login {
     verbose Clearing cookie cache
     rm -f $cookie_file
+    # Step 1: Try to access the video server and be redirected to login page
+    # Location here really doesn't matter..
     location=`curl -s -L https://video.technion.ac.il/Courses/Signals_and_Systems_Tut.html -b $cookie_file -c $cookie_file | sed -n '/action/ {s/.*"\(.*\)".*/\1/;p;}'`
     if [ -z "$location" ]; then
        echo login error: bad redirect location >&2
@@ -23,6 +25,7 @@ function login {
     fi
     verbose location is $location
     saml=`mktemp`
+    # Step 2: Send user and password and receive the SAML response data
     verbose Logging in and getting SAML response
     curl -s -c $cookie_file -b $cookie_file  'https://sason-p.technion.ac.il'$location --data-urlencode j_username="$user@$login_server" --data-urlencode j_password="$pass" --data-urlencode LogiN="$user" --data-urlencode ServeR=campus.technion.ac.il --data-urlencode PasswD="$pass" --data-urlencode _eventId_proceed=המשך --data-urlencode Language=HEBREW | grep SAMLResponse | sed 's/.*"\(.*\)".*/\1/' > $saml
     if [ ! -s "$saml" ]; then
@@ -31,9 +34,11 @@ function login {
        return 1
     fi
 
+    # Step 3: Send the SAML response to the video server and get the session cookie
     verbose Getting $cookie_file for login
     curl -s -c $cookie_file https://video.technion.ac.il/Shibboleth.sso/SAML2/POST --data-urlencode SAMLResponse@$saml  > /dev/null
     rm -f $saml
+    # Step 4: Profit
     verbose login done
 }
 
