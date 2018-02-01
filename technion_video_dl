@@ -10,7 +10,7 @@ verbose=
 CURL="curl -s -b $cookie_file"
 
 function verbose {
-    [ "$verbose" ] && echo "$@"
+    [ "$verbose" ] && echo "$@" || return 0
 }
 
 function login {
