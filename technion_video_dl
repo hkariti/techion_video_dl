@@ -1,14 +1,22 @@
 #!/bin/bash
+# Default value for params
 user=
 pass=
-server=https://video.technion.ac.il
+video_server=https://video.technion.ac.il
 cookie_file=cookie
+
+# We always use curl with these args
+CURL="curl -s -b $cookie_file"
 
 function usage {
     echo Usage: $0 COURSE_PAGE [FIRST_VIDEO_NUM [LAST_VIDEO_NUM]]
 }
+
+base_url=$1
+first_video=$2
+last_video=$3
 # Check url format
-if [[ $1 != https://video.technion.ac.il/Courses/*.html ]]; then
+if [[ $base_url != https://video.technion.ac.il/Courses/*.html ]]; then
 	echo 'Error: please insert valid course url (e.g https://video.technion.ac.il/Courses/PhysMech.html).'
     usage
 	exit
@@ -23,45 +31,45 @@ if [[ -z $pass ]]; then
 fi;
 
 # Check url validity
-curl -s -b $cookie_file  $1 >/dev/null
+$CURL $base_url >/dev/null
 if [[ $? -ne 0 ]]; then
 	echo 'Error: please insert exists course url (e.g http://video.technion.ac.il/Courses/PhysMech.html).'
 	exit 1
 fi;
 
 # Calculate the number of all the videos
-videos=`curl -s -b $cookie_file $1 | grep -a movies/rtsp -c`
+videos_count=`$CURL $base_url | grep -a movies/rtsp -c`
+[ ! "$first_video" ] && first_video=1
+[ ! "$last_video" ] && last_video=$video_count
 
-# Check video numbers
-if (( $# >= 2 )) ; then
-	if ! [[ "$2" =~ ^[0-9]+$ ]]  || (( $2 == 0 )) ; then
-		echo 'Error: the second & third parameter can be only positive numbers.'
-		exit 1
-	fi;
-	if (( $2 > $videos )) ; then
-		echo Error: there are just $videos videos, begin index $2 is too high
-		exit 1
-	fi;
-fi;
+# Validate video indexes
+if ! [[ "$first_video" =~ ^[0-9]+$ ]]  || (( $first_video == 0 )) ; then
+    echo 'Error: the second & third parameter can be only positive numbers.'
+    exit 1
+fi
+if (( $first_video > $videos_count )) ; then
+    echo Error: there are just $videos_count videos_count, begin index $first_video is too high
+    exit 1
+fi
 
-if (( $# == 3 )) ; then
-	if ! [[ "$3" =~ ^[0-9]+$ ]] || (( $3 == 0 )) ; then
-		echo 'Error: the second & third parameter can be only positive numbers.'
-		exit 1
-	fi;
-	if  (( $3 > $videos )) ; then
-		echo Error: there is just $videos videos, end index $3 is too high.
-		exit 1
-	fi;
-	if (( $3 < $2 )) ; then
-		echo Error: end index $3 is higher than begin index $2
-		exit 1
-	fi;
-fi;
+if ! [[ "$last_video" =~ ^[0-9]+$ ]] || (( $last_video == 0 )) ; then
+    echo 'Error: the second & third parameter can be only positive numbers.'
+    exit 1
+fi
+if  (( $last_video > $videos_count )) ; then
+    echo Error: there is just $videos_count videos_count, end index $last_video is too high.
+    exit 1
+fi
+if (( $last_video < $first_video )) ; then
+    echo Error: end index $last_video is higher than begin index $first_video
+    exit 1
+fi
 
 # Let's rock!
-curl -s -b $cookie_file $1 | grep -a movies/rtsp | cut -d"'" -f4 | head -n ${3-$videos} | tail -n +${2-1} |
-    while read line; do
-        echo Downloading `echo $line | cut -d"/" -f6`, please wait...
-        msdl -s2 `curl -s -b $cookie_file $server$line | grep -a 'window.location="rtsp' | cut -d"\"" -f2 ` -o `echo $line | cut -d"/" -f6`
+$CURL $base_url | grep -a movies/rtsp | cut -d"'" -f4 | sed -n "$first_video,$last_video p" | \
+    while read video; do
+        video_name=`echo $video| cut -d"/" -f6`
+        video_url=`$CURL $video_server$video| grep -a 'window.location="rtsp' | cut -d"\"" -f2 ` 
+        echo Downloading $video_name, please wait...
+        msdl -s2 "$video_url" -o "$video_name"
     done
