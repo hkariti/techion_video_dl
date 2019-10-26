@@ -27,7 +27,7 @@ function login {
     saml=`mktemp`
     # Step 2: Send user and password and receive the SAML response data
     verbose Logging in and getting SAML response
-    curl -s -c $cookie_file -b $cookie_file  'https://sason-p.technion.ac.il'$location --data-urlencode j_username="$user@$login_server" --data-urlencode j_password="$pass" --data-urlencode LogiN="$user" --data-urlencode ServeR=campus.technion.ac.il --data-urlencode PasswD="$pass" --data-urlencode _eventId_proceed=המשך --data-urlencode Language=HEBREW | grep SAMLResponse | sed 's/.*"\(.*\)".*/\1/' > $saml
+    curl -s -c $cookie_file -b $cookie_file  'https://sason-p.technion.ac.il'$location --data-urlencode j_username="$user" --data-urlencode j_password="$pass" --data-urlencode EmaiL="$user" --data-urlencode PasswD="$pass" --data-urlencode _eventId_proceed= --data-urlencode Language=HEBREW | grep SAMLResponse | sed 's/.*"\(.*\)".*/\1/' > $saml
     if [ ! -s "$saml" ]; then
        echo login error: error getting saml response >&2
        rm -f "$saml"
@@ -58,15 +58,20 @@ fi;
 
 # Get username and password from user
 if [[ -z $user ]]; then
-    read -p "Username: " user
+    read -p "Username/email: " user
 fi;
+
+if ! echo "$user" | grep -q '@'; then
+    user=$user@$login_server
+fi
+
 if [[ -z $pass ]]; then
     read -s -p "Password: " pass
     echo
 fi;
 
 # Log in
-echo Logging in
+echo Logging in with email $user
 login || exit 1
 
 # Check url validity
